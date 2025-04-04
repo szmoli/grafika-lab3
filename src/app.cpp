@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <math.h>
 
 using namespace glm;
 
@@ -32,13 +33,20 @@ const char * fragSource = R"(
     precision highp float;
 
 	uniform sampler2D samplerUnit;
+	uniform bool coloring;
+	uniform vec3 color;
 
 	in vec2 texCoord;
 	
 	out vec4 fragmentColor;
 
 	void main() {
-		fragmentColor = texture(samplerUnit, texCoord);
+		if (coloring) {
+			fragmentColor = vec4(color, 1);
+		}
+		else {
+			fragmentColor = texture(samplerUnit, texCoord);
+		}
 	}
 )";
 
@@ -164,7 +172,7 @@ public:
 				byteStr += byteChar;
 			}
 		}
-		printf("imgBytes size: %f\n", sqrt(imgBytes.size() / 4));
+		// printf("imgBytes size: %f\n", sqrt(imgBytes.size() / 4));
 
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
@@ -177,11 +185,12 @@ public:
 		prog->Use();
 		prog->setUniform(MVP, "MVP");
 		prog->setUniform(0, "samplerUnit");
+		prog->setUniform(false, "coloring");
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(vao);
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, sizeof(vtxs) / sizeof(vec2));
-		printf("sizeof(vtxs) / sizeof(vec2) = %ld\n", sizeof(vtxs) / sizeof(vec2));
+		// printf("sizeof(vtxs) / sizeof(vec2) = %ld\n", sizeof(vtxs) / sizeof(vec2));
 	}
 
 // -----------------------------------------
@@ -194,30 +203,97 @@ private:
 	vec2 uvs[4];
 };
 
+class Stations {
+// -----------------------------------------
+// Public
+public:
+	Stations() {	
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glGenBuffers(1, &vbo);
+	}
+
+	void sync() {
+		glBindVertexArray(vao);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, wPositions.size() * sizeof(vec2), wPositions.data(), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+	}
+
+	void draw(GPUProgram* prog, mat4 MVP) {
+		prog->Use();
+		prog->setUniform(MVP, "MVP");
+		prog->setUniform(true, "coloring");
+		prog->setUniform(vec3(1.f, 0.f, 0.f), "color");
+		glBindVertexArray(vao);
+		glDrawArrays(GL_POINTS, 0, wPositions.size());
+	}	
+
+	void addStation(vec2 wPos) {
+		wPositions.push_back(wPos);
+	}
+
+// -----------------------------------------
+// Private
+private:
+	std::vector<vec2> wPositions;
+	unsigned int vao;
+	unsigned int vbo;
+};
+
+float degrees(float radians) {
+	return radians * (180 / M_PI);
+}
+
 const int winWidth = 600, winHeight = 600;
 
 class MercatorMapApp : public glApp {
 	GPUProgram* gpuProgram;	
 	Map* map;
 	Camera* camera;
+	Stations* stations;
 	mat4 MVP;
+	mat4 invMVP;
 public:
 	MercatorMapApp() : glApp("Lab3") { }
 
-	void onInitialization() {
+	void onInitialization() override {
 		camera = new Camera();
 		MVP = camera->projection() * camera->view();
+		invMVP = camera->invView() * camera->invProjection();
 
 		gpuProgram = new GPUProgram(vertSource, fragSource);
 		map = new Map();
+		stations = new Stations();
+
+		glPointSize(10);
+		glLineWidth(3);
 	}
 
-	void onDisplay() {
+	void onDisplay() override {
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
 		glViewport(0, 0, winWidth, winHeight);
 
 		map->draw(gpuProgram, MVP);
+		stations->sync();
+		stations->draw(gpuProgram, MVP);
+	}
+
+	void onMousePressed(MouseButton but, int pX, int pY) override {
+		float cX = (2.f * pX) / winWidth - 1.f;
+    	float cY = 1.f - (2.f * pY) / winHeight;
+		vec4 wPos = vec4(cX, cY, 1, 1) * invMVP;
+		float radLatitude = atan(exp(wPos.y)) - (M_PI / 2);
+
+		// printf("Clicked (device coords): (%d, %d)\n", pX, pY);
+		// printf("Clicked (clip coords): (%lf, %lf)\n", cX, cY);
+		// printf("Clicked (world coords): (%lf, %lf)\n", wPos.x, wPos.y);
+		printf("Clicked:\n\tWorld: (%lf, %lf)\n\tSphere: (%lf, %lf)\n", wPos.x, wPos.y, wPos.x, degrees(radLatitude));
+
+		stations->addStation(vec2(wPos.x, wPos.y));
+		refreshScreen();
 	}
 };
 
