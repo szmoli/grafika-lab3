@@ -75,6 +75,10 @@ public:
 		return scale(vec3(wSize.x / 2.0f, wSize.y / 2.0f, 1.0f));	
 	}
 
+	vec2 getWSize() {
+		return wSize;
+	}
+
 // -----------------------------------------
 // Private
 private:
@@ -276,6 +280,8 @@ class MercatorMapApp : public glApp {
 	Routes* routes;
 	mat4 MVP;
 	mat4 invMVP;
+	mat4 WS; 		// world -> sphere transformation
+	mat4 invWS; 	// world <- sphere transformation
 public:
 	MercatorMapApp() : glApp("Lab3") { }
 
@@ -283,6 +289,8 @@ public:
 		camera = new Camera();
 		MVP = camera->projection() * camera->view();
 		invMVP = camera->invView() * camera->invProjection();
+		WS = scale(vec3(180.f / (camera->getWSize().x / 2), 85.f / (camera->getWSize().y / 2), 1.f));
+		invWS = scale(vec3((camera->getWSize().x / 2) / 180.f, (camera->getWSize().y / 2) / 85.f, 1.f));
 
 		gpuProgram = new GPUProgram(vertSource, fragSource);
 		map = new Map();
@@ -309,7 +317,7 @@ public:
 		float cX = (2.f * pX) / winWidth - 1.f;
     	float cY = 1.f - (2.f * pY) / winHeight;
 		vec4 wPos = vec4(cX, cY, 1, 1) * invMVP;
-		vec4 sDegPos = scale(vec3(5.625f, 2.65625f, 1.f)) * wPos; // position on the sphere in degrees
+		vec4 sDegPos = WS * wPos; // position on the sphere in degrees
 
 		// printf("Clicked (device coords): (%d, %d)\n", pX, pY);
 		// printf("Clicked (clip coords): (%lf, %lf)\n", cX, cY);
