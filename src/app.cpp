@@ -203,14 +203,19 @@ private:
 	vec2 tVertexUVs[4];
 };
 
-class Stations {
+class Object {
 // -----------------------------------------
 // Public
 public:
-	Stations() {	
+	Object (unsigned int primitiveType) {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 		glGenBuffers(1, &vbo);
+		this->primitiveType = primitiveType;
+	}
+
+	void addWPosition(vec2 wPos) {
+		wPositions.push_back(wPos);
 	}
 
 	void sync() {
@@ -221,25 +226,36 @@ public:
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 	}
 
-	void draw(GPUProgram* prog, mat4 MVP) {
+	void draw(GPUProgram* prog, mat4 MVP, vec3 color) {
 		prog->Use();
 		prog->setUniform(MVP, "MVP");
 		prog->setUniform(true, "coloring");
-		prog->setUniform(vec3(1.f, 0.f, 0.f), "color");
+		prog->setUniform(color, "color");
 		glBindVertexArray(vao);
-		glDrawArrays(GL_POINTS, 0, wPositions.size());
+		glDrawArrays(primitiveType, 0, wPositions.size());
 	}	
 
-	void addStation(vec2 wPos) {
-		wPositions.push_back(wPos);
-	}
-
 // -----------------------------------------
-// Private
-private:
+// Protected
+protected: 
 	std::vector<vec2> wPositions;
 	unsigned int vao;
 	unsigned int vbo;
+	unsigned int primitiveType;
+};
+
+class Stations : public Object {
+// -----------------------------------------
+// Public
+public:
+	Stations() : Object(GL_POINTS) {}
+};
+
+class Routes : public Object {
+// -----------------------------------------
+// Public
+public:
+	Routes() : Object(GL_LINE_STRIP) {}
 };
 
 float degrees(float radians) {
@@ -257,6 +273,7 @@ class MercatorMapApp : public glApp {
 	Map* map;
 	Camera* camera;
 	Stations* stations;
+	Routes* routes;
 	mat4 MVP;
 	mat4 invMVP;
 public:
@@ -270,6 +287,7 @@ public:
 		gpuProgram = new GPUProgram(vertSource, fragSource);
 		map = new Map();
 		stations = new Stations();
+		routes = new Routes();
 
 		glPointSize(10);
 		glLineWidth(3);
@@ -281,8 +299,10 @@ public:
 		glViewport(0, 0, winWidth, winHeight);
 
 		map->draw(gpuProgram, MVP);
+		routes->sync();
+		routes->draw(gpuProgram, MVP, vec3(1.f, 1.f, 0.f));
 		stations->sync();
-		stations->draw(gpuProgram, MVP);
+		stations->draw(gpuProgram, MVP, vec3(1.f, 0.f, 0.f));
 	}
 
 	void onMousePressed(MouseButton but, int pX, int pY) override {
@@ -296,7 +316,8 @@ public:
 		// printf("Clicked (world coords): (%lf, %lf)\n", wPos.x, wPos.y);
 		printf("Clicked:\n\tWorld: (%lf, %lf)\n\tSphere: (%lf, %lf)\n", wPos.x, wPos.y, sDegPos.x, sDegPos.y);
 
-		stations->addStation(vec2(wPos.x, wPos.y));
+		routes->addWPosition(vec2(wPos.x, wPos.y));
+		stations->addWPosition(vec2(wPos.x, wPos.y));
 		refreshScreen();
 	}
 };
