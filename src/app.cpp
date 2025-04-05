@@ -87,14 +87,14 @@ class Map {
 // Public
 public:
 	Map() {
-		vtxs[0] = vec2(-32.f, -32.f);
-		vtxs[1] = vec2(-32.f, 32.f);
-		vtxs[2] = vec2(32.f, -32.f);
-		vtxs[3] = vec2(32.f, 32.f);
-		uvs[0] = vec2(0.f, 0.f);
-		uvs[1] = vec2(0.f, 1.f);
-		uvs[2] = vec2(1.f, 0.f);
-		uvs[3] = vec2(1.f, 1.f);
+		wVertices[0] = vec2(-32.f, -32.f);
+		wVertices[1] = vec2(-32.f, 32.f);
+		wVertices[2] = vec2(32.f, -32.f);
+		wVertices[3] = vec2(32.f, 32.f);
+		tVertexUVs[0] = vec2(0.f, 0.f);
+		tVertexUVs[1] = vec2(0.f, 1.f);
+		tVertexUVs[2] = vec2(1.f, 0.f);
+		tVertexUVs[3] = vec2(1.f, 1.f);
 
 // -----------------------------------------
 // VAO & VBO
@@ -104,11 +104,11 @@ public:
 		// [1] -> texture coords
 		glGenBuffers(2, vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vtxs), vtxs, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(wVertices), wVertices, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(uvs), uvs, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(tVertexUVs), tVertexUVs, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
 
@@ -189,7 +189,7 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, sizeof(vtxs) / sizeof(vec2));
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, sizeof(wVertices) / sizeof(vec2));
 		// printf("sizeof(vtxs) / sizeof(vec2) = %ld\n", sizeof(vtxs) / sizeof(vec2));
 	}
 
@@ -199,8 +199,8 @@ private:
 	unsigned int vao;
 	unsigned int vbo[2];
 	unsigned int texture;
-	vec2 vtxs[4];
-	vec2 uvs[4];
+	vec2 wVertices[4];
+	vec2 tVertexUVs[4];
 };
 
 class Stations {
@@ -246,6 +246,10 @@ float degrees(float radians) {
 	return radians * (180 / M_PI);
 }
 
+float radians(float degrees) {
+	return degrees * (M_PI / 180);
+}
+
 const int winWidth = 600, winHeight = 600;
 
 class MercatorMapApp : public glApp {
@@ -285,12 +289,12 @@ public:
 		float cX = (2.f * pX) / winWidth - 1.f;
     	float cY = 1.f - (2.f * pY) / winHeight;
 		vec4 wPos = vec4(cX, cY, 1, 1) * invMVP;
-		float radLatitude = atan(exp(wPos.y)) - (M_PI / 2);
+		vec4 sDegPos = scale(vec3(5.625f, 2.65625f, 1.f)) * wPos; // position on the sphere in degrees
 
 		// printf("Clicked (device coords): (%d, %d)\n", pX, pY);
 		// printf("Clicked (clip coords): (%lf, %lf)\n", cX, cY);
 		// printf("Clicked (world coords): (%lf, %lf)\n", wPos.x, wPos.y);
-		printf("Clicked:\n\tWorld: (%lf, %lf)\n\tSphere: (%lf, %lf)\n", wPos.x, wPos.y, wPos.x, degrees(radLatitude));
+		printf("Clicked:\n\tWorld: (%lf, %lf)\n\tSphere: (%lf, %lf)\n", wPos.x, wPos.y, sDegPos.x, sDegPos.y);
 
 		stations->addStation(vec2(wPos.x, wPos.y));
 		refreshScreen();
