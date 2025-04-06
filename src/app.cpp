@@ -259,24 +259,117 @@ public:
 	Stations() : Object(GL_POINTS) {}
 };
 
+class Sphere {
+// -----------------------------------------
+// Public
+public:
+	Sphere(Camera* camera, float radius) {
+		this->camera = camera;
+		this->radius = radius;
+	}
+
+	float radLatW(vec4 wPos) {
+		return radians(wPos.x * (180.f / (camera->getWSize().x / 2)));
+	}
+
+	float radLonW(vec4 wPos) {
+		return radians(wPos.y * (85.f / (camera->getWSize().y / 2)));
+	}
+
+	float radLatS(vec4 sPos) {
+		return asin(sPos.z / radius);
+	}
+	
+	float radLonS(vec4 sPos) {
+		return atan2(sPos.y, sPos.x);
+	}
+
+	vec4 wPos(float radLon, float radLat) {
+		float x = degrees(radLat) * ((camera->getWSize().x / 2) / 180.f);
+		float y = degrees(radLon) * ((camera->getWSize().y / 2) / 85.f);
+		return vec4(x, y, 1.f, 1.f);
+	}
+
+	vec4 sPos(float radLon, float radLat) {
+		return vec4(
+			radius * cos(radLat) * cos(radLon),
+			radius * cos(radLat) * sin(radLon),
+			radius * sin(radLat),
+			1.f
+		);
+	}
+
+	vec4 slerp(vec4 sP0, vec4 sP1, float t) {
+		vec3 p0 = normalize(vec3(sP0));
+		vec3 p1 = normalize(vec3(sP1));	
+		float dotProd = dot(p0, p1);
+		float omega = acos(dotProd);
+		float sinOmega = sin(omega);
+		float scale0 = sin((1.f - t) * omega) / sinOmega;
+		float scale1 = sin(t * omega) / sinOmega;
+		vec3 result = scale0 * p0 + scale1 * p1;
+		return vec4(result * radius, 1.f);
+	}
+
+// -----------------------------------------
+// Private
+private:
+	Camera* camera;
+	float radius;
+};
+
 class Routes : public Object {
 // -----------------------------------------
 // Public
 public:
-	Routes() : Object(GL_LINE_STRIP) {}
+	Routes(Sphere* sphere) : Object(GL_LINE_STRIP) {
+		this->sphere = sphere;
+	}
 
 	void addWPosition(vec4 wPosition) override {
 		if (!wPositions.empty()) {
+			float lat_p0 = sphere->radLatW(wPositions.back());
+			float lon_p0 = sphere->radLonW(wPositions.back());
+			float lat_p1 = sphere->radLatW(wPosition);
+			float lon_p1 = sphere->radLonW(wPosition);
+			vec4 sP0 = sphere->sPos(lon_p0, lat_p0);
+			vec4 sP1 = sphere->sPos(lon_p1, lat_p1);
+			float lat_p0_s = sphere->radLatS(sP0);
+			float lon_p0_s = sphere->radLonS(sP0);
+			float lat_p1_s = sphere->radLatS(sP1);
+			float lon_p1_s = sphere->radLonS(sP1);
+			vec4 wP0 = sphere->wPos(lon_p0_s, lat_p0_s);
+			vec4 wP1 = sphere->wPos(lon_p1_s, lat_p1_s);
+
+			printf("p0 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPositions.back().x, wPositions.back().y, wPositions.back().z, wPositions.back().w, lon_p0, lat_p0, sP0.x, sP0.y, sP0.z, sP0.w, lon_p0_s, lat_p0_s, wP0.x, wP0.y, wP0.z, wP0.w);
+			printf("p1 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPosition.x, wPosition.y, wPosition.z, wPosition.w, lon_p1, lat_p1, sP1.x, sP1.y, sP1.z, sP1.w, lon_p1_s, lat_p1_s, wP1.x, wP1.y, wP1.z, wP1.w);
 			
-		} 
+			int resolution = 3;
+			for (int res = 1; res < resolution; ++res) {
+				float t = (float)res / (float)resolution;
+				printf("t: %lf\n", t);
+				vec4 sSlerped = sphere->slerp(sP0, sP1, t);
+				float lat_slerped = sphere->radLatS(sSlerped);
+				float lon_slerped = sphere->radLonS(sSlerped);
+				vec4 wSlerped = sphere->wPos(lon_slerped, lat_slerped);
+				wPositions.push_back(wSlerped);
+			}
+		}
 
 		wPositions.push_back(wPosition);
+		printf("wPositions size: %ld\n", wPositions.size());
+		for (int i = 0; i < wPositions.size(); ++i) {
+			printf("\t(%lf, %lf, %lf, %lf)\n", wPositions[i].x, wPositions[i].y, wPositions[i].z, wPositions[i].w);
+		}
+		printf("\n");
 	}
+
 // -----------------------------------------
 // Private
 private:
 	mat4 WS;
 	mat4 invWS;
+	Sphere* sphere;
 };
 
 float degrees(float radians) {
@@ -295,10 +388,9 @@ class MercatorMapApp : public glApp {
 	Camera* camera;
 	Stations* stations;
 	Routes* routes;
+	Sphere* sphere;
 	mat4 MVP;
 	mat4 invMVP;
-	mat4 WS; 		// world -> sphere transformation
-	mat4 invWS; 	// world <- sphere transformation
 public:
 	MercatorMapApp() : glApp("Lab3") { }
 
@@ -306,16 +398,22 @@ public:
 		camera = new Camera();
 		MVP = camera->projection() * camera->view();
 		invMVP = camera->invView() * camera->invProjection();
-		WS = scale(vec3(180.f / (camera->getWSize().x / 2), 85.f / (camera->getWSize().y / 2), 1.f));
-		invWS = scale(vec3((camera->getWSize().x / 2) / 180.f, (camera->getWSize().y / 2) / 85.f, 1.f));
 
 		gpuProgram = new GPUProgram(vertSource, fragSource);
 		map = new Map();
 		stations = new Stations();
-		routes = new Routes();
+		// sphere = new Sphere(1);
+		sphere = new Sphere(camera, 40000 / (2 * M_PI));
+		routes = new Routes(sphere);
 
 		glPointSize(10);
 		glLineWidth(3);
+
+		onMousePressed(MouseButton::MOUSE_LEFT, 354, 176);
+		onMousePressed(MouseButton::MOUSE_LEFT, 105, 201);
+		onMousePressed(MouseButton::MOUSE_LEFT, 214, 320);
+		onMousePressed(MouseButton::MOUSE_LEFT, 505, 204);
+		onMousePressed(MouseButton::MOUSE_LEFT, 356, 175);
 	}
 
 	void onDisplay() override {
@@ -335,12 +433,15 @@ public:
     	float cY = 1.f - (2.f * pY) / winHeight;
 		vec4 cPos = vec4(cX, cY, 1, 1);
 		vec4 wPos = cPos * invMVP;
-		vec4 sDegPos = WS * wPos; // position on the sphere in degrees
-
-		// printf("Clicked (device coords): (%d, %d)\n", pX, pY);
-		// printf("Clicked (clip coords): (%lf, %lf)\n", cX, cY);
-		// printf("Clicked (world coords): (%lf, %lf)\n", wPos.x, wPos.y);
-		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
+		// vec4 sDegPos = WS * wPos; // position on the sphere in degrees
+		// float degLat = sDegPos.x;
+		// float degLon = sDegPos.y;
+		// float radLat = radians(degLat);
+		// float radLon = radians(degLon);
+		
+		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
+		// printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
+		// printf("Lat: %lf deg, %lf rad\nLon: %lf deg, %lf rad\n\n", degLat, radLat, degLon, radLon);
 
 		routes->addWPosition(wPos);
 		stations->addWPosition(wPos);
