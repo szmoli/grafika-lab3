@@ -439,7 +439,7 @@ public:
 		float cX = (2.f * pX) / winWidth - 1.f;
     	float cY = 1.f - (2.f * pY) / winHeight;
 		vec4 cPos = vec4(cX, cY, 1, 1);
-		vec4 wPos = cPos * invMVP;
+		vec4 wPos = invMVP * cPos;
 		// vec4 sDegPos = WS * wPos; // position on the sphere in degrees
 		// float degLat = sDegPos.x;
 		// float degLon = sDegPos.y;
