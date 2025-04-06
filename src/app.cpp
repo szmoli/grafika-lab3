@@ -218,7 +218,7 @@ public:
 		this->primitiveType = primitiveType;
 	}
 
-	void addWPosition(vec2 wPos) {
+	virtual void addWPosition(vec2 wPos) {
 		wPositions.push_back(wPos);
 	}
 
@@ -260,6 +260,19 @@ class Routes : public Object {
 // Public
 public:
 	Routes() : Object(GL_LINE_STRIP) {}
+
+	void addWPosition(vec2 wPosition) override {
+		if (!wPositions.empty()) {
+			
+		} 
+
+		wPositions.push_back(wPosition);
+	}
+// -----------------------------------------
+// Private
+private:
+	mat4 WS;
+	mat4 invWS;
 };
 
 float degrees(float radians) {
