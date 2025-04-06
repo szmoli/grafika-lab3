@@ -269,11 +269,11 @@ public:
 	}
 
 	float radLatW(vec4 wPos) {
-		return radians(wPos.x * (180.f / (camera->getWSize().x / 2)));
+		return radians(wPos.y * (85.f / (camera->getWSize().y / 2)));
 	}
 
 	float radLonW(vec4 wPos) {
-		return radians(wPos.y * (85.f / (camera->getWSize().y / 2)));
+		return radians(wPos.x * (180.f / (camera->getWSize().x / 2)));
 	}
 
 	float radLatS(vec4 sPos) {
@@ -285,8 +285,8 @@ public:
 	}
 
 	vec4 wPos(float radLon, float radLat) {
-		float x = degrees(radLat) * ((camera->getWSize().x / 2) / 180.f);
-		float y = degrees(radLon) * ((camera->getWSize().y / 2) / 85.f);
+		float x = degrees(radLon) * ((camera->getWSize().x / 2) / 180.f);
+		float y = degrees(radLat) * ((camera->getWSize().y / 2) / 85.f);
 		return vec4(x, y, 1.f, 1.f);
 	}
 
@@ -344,10 +344,10 @@ public:
 			printf("p0 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPositions.back().x, wPositions.back().y, wPositions.back().z, wPositions.back().w, lon_p0, lat_p0, sP0.x, sP0.y, sP0.z, sP0.w, lon_p0_s, lat_p0_s, wP0.x, wP0.y, wP0.z, wP0.w);
 			printf("p1 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPosition.x, wPosition.y, wPosition.z, wPosition.w, lon_p1, lat_p1, sP1.x, sP1.y, sP1.z, sP1.w, lon_p1_s, lat_p1_s, wP1.x, wP1.y, wP1.z, wP1.w);
 			
-			int resolution = 3;
+			int resolution = 100;
 			for (int res = 1; res < resolution; ++res) {
 				float t = (float)res / (float)resolution;
-				printf("t: %lf\n", t);
+				// printf("t: %lf\n", t);
 				vec4 sSlerped = sphere->slerp(sP0, sP1, t);
 				float lat_slerped = sphere->radLatS(sSlerped);
 				float lon_slerped = sphere->radLonS(sSlerped);
@@ -357,11 +357,11 @@ public:
 		}
 
 		wPositions.push_back(wPosition);
-		printf("wPositions size: %ld\n", wPositions.size());
-		for (int i = 0; i < wPositions.size(); ++i) {
-			printf("\t(%lf, %lf, %lf, %lf)\n", wPositions[i].x, wPositions[i].y, wPositions[i].z, wPositions[i].w);
-		}
-		printf("\n");
+		// printf("wPositions size: %ld\n", wPositions.size());
+		// for (int i = 0; i < wPositions.size(); ++i) {
+		// 	printf("\t(%lf, %lf, %lf, %lf)\n", wPositions[i].x, wPositions[i].y, wPositions[i].z, wPositions[i].w);
+		// }
+		// printf("\n");
 	}
 
 // -----------------------------------------
@@ -439,7 +439,7 @@ public:
 		// float radLat = radians(degLat);
 		// float radLon = radians(degLon);
 		
-		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
+		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\tLon & lat (deg): %lf, %lf\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w, degrees(sphere->radLonW(wPos)), degrees(sphere->radLatW(wPos)));
 		// printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
 		// printf("Lat: %lf deg, %lf rad\nLon: %lf deg, %lf rad\n\n", degLat, radLat, degLon, radLon);
 
