@@ -16,13 +16,13 @@ const char * vertSource = R"(
 
 	uniform mat4 MVP;
 
-	layout(location = 0) in vec2 wPos; // world position
+	layout(location = 0) in vec4 wPos; // world position
 	layout(location = 1) in vec2 tPos; // texture position
 
 	out vec2 texCoord;
 
 	void main() {
-		gl_Position = MVP * vec4(wPos.x, wPos.y, 1, 1);
+		gl_Position = MVP * wPos;
 		texCoord = tPos;
 	}
 )";
@@ -55,35 +55,35 @@ class Camera {
 // Public
 public:
 	Camera() {
-		wCenter = vec2(0.f, 0.f);
-		wSize = vec2(64.f, 64.f);
+		wCenter = vec4(0.f, 0.f, 1.f, 1.f);
+		wSize = vec4(64.f, 64.f, 0.f, 0.f);
 	}
 
 	mat4 view() {	
-		return translate(vec3(-wCenter.x, -wCenter.y, 0.0f));
+		return translate(vec3(-wCenter.x, -wCenter.y, 0.f));
 	}
 
 	mat4 invView() {
-		return translate(vec3(wCenter.x, wCenter.y, 0));
+		return translate(vec3(wCenter.x, wCenter.y, 0.f));
 	}
 
 	mat4 projection() {
-		return scale(vec3(2.0f / wSize.x, 2.0f / wSize.y, 1.0f));
+		return scale(vec3(2.f / wSize.x, 2.f / wSize.y, 1.f));
 	}
 
 	mat4 invProjection() {
-		return scale(vec3(wSize.x / 2.0f, wSize.y / 2.0f, 1.0f));	
+		return scale(vec3(wSize.x / 2.f, wSize.y / 2.f, 1.f));	
 	}
 
-	vec2 getWSize() {
+	vec4 getWSize() {
 		return wSize;
 	}
 
 // -----------------------------------------
 // Private
 private:
-	vec2 wCenter;
-	vec2 wSize;
+	vec4 wCenter;
+	vec4 wSize;
 };
 
 class Map {
@@ -91,10 +91,10 @@ class Map {
 // Public
 public:
 	Map() {
-		wVertices[0] = vec2(-32.f, -32.f);
-		wVertices[1] = vec2(-32.f, 32.f);
-		wVertices[2] = vec2(32.f, -32.f);
-		wVertices[3] = vec2(32.f, 32.f);
+		wVertices[0] = vec4(-32.f, -32.f, 1.f, 1.f);
+		wVertices[1] = vec4(-32.f, 32.f, 1.f, 1.f);
+		wVertices[2] = vec4(32.f, -32.f, 1.f, 1.f);
+		wVertices[3] = vec4(32.f, 32.f, 1.f, 1.f);
 		tVertexUVs[0] = vec2(0.f, 0.f);
 		tVertexUVs[1] = vec2(0.f, 1.f);
 		tVertexUVs[2] = vec2(1.f, 0.f);
@@ -110,7 +110,7 @@ public:
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(wVertices), wVertices, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(tVertexUVs), tVertexUVs, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(1);
@@ -193,8 +193,12 @@ public:
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, sizeof(wVertices) / sizeof(vec2));
-		// printf("sizeof(vtxs) / sizeof(vec2) = %ld\n", sizeof(vtxs) / sizeof(vec2));
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, sizeof(wVertices) / sizeof(vec4));
+		// printf("sizeof(vtxs) / sizeof(vec2) = %ld\n", sizeof(wVertices) / sizeof(vec4));
+		// for (int i = 0; i < 4; ++i) {
+		// 	vec4 cPos = MVP * wVertices[i];
+		// 	printf("w(%lf, %lf, %lf, %lf) -> c(%lf, %lf, %lf, %lf)\n", wVertices[i].x, wVertices[i].y, wVertices[i].z, wVertices[i].w, cPos.x, cPos.y, cPos.z, cPos.w);
+		// }
 	}
 
 // -----------------------------------------
@@ -203,7 +207,7 @@ private:
 	unsigned int vao;
 	unsigned int vbo[2];
 	unsigned int texture;
-	vec2 wVertices[4];
+	vec4 wVertices[4];
 	vec2 tVertexUVs[4];
 };
 
@@ -218,16 +222,16 @@ public:
 		this->primitiveType = primitiveType;
 	}
 
-	virtual void addWPosition(vec2 wPos) {
+	virtual void addWPosition(vec4 wPos) {
 		wPositions.push_back(wPos);
 	}
 
 	void sync() {
 		glBindVertexArray(vao);
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, wPositions.size() * sizeof(vec2), wPositions.data(), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, wPositions.size() * sizeof(vec4), wPositions.data(), GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, nullptr);
+		glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
 	}
 
 	void draw(GPUProgram* prog, mat4 MVP, vec3 color) {
@@ -242,7 +246,7 @@ public:
 // -----------------------------------------
 // Protected
 protected: 
-	std::vector<vec2> wPositions;
+	std::vector<vec4> wPositions;
 	unsigned int vao;
 	unsigned int vbo;
 	unsigned int primitiveType;
@@ -261,7 +265,7 @@ class Routes : public Object {
 public:
 	Routes() : Object(GL_LINE_STRIP) {}
 
-	void addWPosition(vec2 wPosition) override {
+	void addWPosition(vec4 wPosition) override {
 		if (!wPositions.empty()) {
 			
 		} 
@@ -329,16 +333,17 @@ public:
 	void onMousePressed(MouseButton but, int pX, int pY) override {
 		float cX = (2.f * pX) / winWidth - 1.f;
     	float cY = 1.f - (2.f * pY) / winHeight;
-		vec4 wPos = vec4(cX, cY, 1, 1) * invMVP;
+		vec4 cPos = vec4(cX, cY, 1, 1);
+		vec4 wPos = cPos * invMVP;
 		vec4 sDegPos = WS * wPos; // position on the sphere in degrees
 
 		// printf("Clicked (device coords): (%d, %d)\n", pX, pY);
 		// printf("Clicked (clip coords): (%lf, %lf)\n", cX, cY);
 		// printf("Clicked (world coords): (%lf, %lf)\n", wPos.x, wPos.y);
-		printf("Clicked:\n\tWorld: (%lf, %lf)\n\tSphere: (%lf, %lf)\n", wPos.x, wPos.y, sDegPos.x, sDegPos.y);
+		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
 
-		routes->addWPosition(vec2(wPos.x, wPos.y));
-		stations->addWPosition(vec2(wPos.x, wPos.y));
+		routes->addWPosition(wPos);
+		stations->addWPosition(wPos);
 		refreshScreen();
 	}
 };
