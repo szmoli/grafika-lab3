@@ -276,8 +276,12 @@ public:
 		this->radius = radius;
 	}
 
+	// float radLatW(vec4 wPos) {
+	// 	return inRadians(wPos.y * (85.f / (camera->getWSize().y / 2)));
+	// }
 	float radLatW(vec4 wPos) {
-		return inRadians(wPos.y * (85.f / (camera->getWSize().y / 2)));
+		float y_mercator = wPos.y * (2.9506 / (camera->getWSize().y / 2.0));
+		return 2.0 * atan(exp(y_mercator)) - M_PI_2;
 	}
 
 	float radLonW(vec4 wPos) {
@@ -292,10 +296,16 @@ public:
 		return atan2(sPos.y, sPos.x);
 	}
 
+	// vec4 wPos(float radLon, float radLat) {
+	// 	float x = inDegrees(radLon) * ((camera->getWSize().x / 2) / 180.f);
+	// 	float y = inDegrees(radLat) * ((camera->getWSize().y / 2) / 85.f);
+	// 	return vec4(x, y, 1.f, 1.f);
+	// }
 	vec4 wPos(float radLon, float radLat) {
-		float x = inDegrees(radLon) * ((camera->getWSize().x / 2) / 180.f);
-		float y = inDegrees(radLat) * ((camera->getWSize().y / 2) / 85.f);
-		return vec4(x, y, 1.f, 1.f);
+		float x = inDegrees(radLon) * ((camera->getWSize().x / 2.0) / 180.0);		
+		float y_mercator = log(tan(M_PI_4 + 0.5 * radLat)); // Mercator projection
+		float y = y_mercator * ((camera->getWSize().y / 2.0) / 2.9506);		
+		return vec4(x, y, 1.0, 1.0);
 	}
 
 	float distance(vec4 sP0, vec4 sP1) {
@@ -446,7 +456,7 @@ public:
 		// float radLat = radians(degLat);
 		// float radLon = radians(degLon);
 		
-		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\tLon & lat (deg): %lf, %lf\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w, inDegrees(sphere->radLonW(wPos)), inDegrees(sphere->radLatW(wPos)));
+		// printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\tLon & lat (deg): %lf, %lf\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w, inDegrees(sphere->radLonW(wPos)), inDegrees(sphere->radLatW(wPos)));
 		// printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
 		// printf("Lat: %lf deg, %lf rad\nLon: %lf deg, %lf rad\n\n", degLat, radLat, degLon, radLon);
 
