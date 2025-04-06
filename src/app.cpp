@@ -9,6 +9,14 @@
 
 using namespace glm;
 
+float inDegrees(float radians) {
+	return radians * (180 / M_PI);
+}
+
+float inRadians(float degrees) {
+	return degrees * (M_PI / 180);
+}
+
 // cs�cspont �rnyal�
 const char * vertSource = R"(
 	#version 330				
@@ -269,11 +277,11 @@ public:
 	}
 
 	float radLatW(vec4 wPos) {
-		return radians(wPos.y * (85.f / (camera->getWSize().y / 2)));
+		return inRadians(wPos.y * (85.f / (camera->getWSize().y / 2)));
 	}
 
 	float radLonW(vec4 wPos) {
-		return radians(wPos.x * (180.f / (camera->getWSize().x / 2)));
+		return inRadians(wPos.x * (180.f / (camera->getWSize().x / 2)));
 	}
 
 	float radLatS(vec4 sPos) {
@@ -285,14 +293,13 @@ public:
 	}
 
 	vec4 wPos(float radLon, float radLat) {
-		float x = degrees(radLon) * ((camera->getWSize().x / 2) / 180.f);
-		float y = degrees(radLat) * ((camera->getWSize().y / 2) / 85.f);
+		float x = inDegrees(radLon) * ((camera->getWSize().x / 2) / 180.f);
+		float y = inDegrees(radLat) * ((camera->getWSize().y / 2) / 85.f);
 		return vec4(x, y, 1.f, 1.f);
 	}
 
 	float distance(vec4 sP0, vec4 sP1) {
-		float dotProd = dot(normalize(vec3(sP0)), normalize(vec3(sP1)));
-		dotProd = clamp(dotProd, -1.0f, 1.0f);
+		float dotProd = dot(normalize(vec3(sP0.x, sP0.y, sP0.z)), normalize(vec3(sP1.x, sP1.y, sP1.z)));
 		return radius * acos(dotProd);
 	}
 
@@ -306,15 +313,15 @@ public:
 	}
 
 	vec4 slerp(vec4 sP0, vec4 sP1, float t) {
-		vec3 p0 = normalize(vec3(sP0));
-		vec3 p1 = normalize(vec3(sP1));	
+		vec3 p0 = normalize(vec3(sP0.x, sP0.y, sP0.z));
+		vec3 p1 = normalize(vec3(sP1.x, sP1.y, sP1.z));	
 		float dotProd = dot(p0, p1);
 		float omega = acos(dotProd);
 		float sinOmega = sin(omega);
 		float scale0 = sin((1.f - t) * omega) / sinOmega;
 		float scale1 = sin(t * omega) / sinOmega;
-		vec3 result = scale0 * p0 + scale1 * p1;
-		return vec4(result * radius, 1.f);
+		vec3 result = radius * (scale0 * p0 + scale1 * p1);
+		return vec4(result.x, result.y, result.z, 1.f);
 	}
 
 // -----------------------------------------
@@ -380,14 +387,6 @@ private:
 	Sphere* sphere;
 };
 
-float degrees(float radians) {
-	return radians * (180 / M_PI);
-}
-
-float radians(float degrees) {
-	return degrees * (M_PI / 180);
-}
-
 const int winWidth = 600, winHeight = 600;
 
 class MercatorMapApp : public glApp {
@@ -447,7 +446,7 @@ public:
 		// float radLat = radians(degLat);
 		// float radLon = radians(degLon);
 		
-		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\tLon & lat (deg): %lf, %lf\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w, degrees(sphere->radLonW(wPos)), degrees(sphere->radLatW(wPos)));
+		printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\tLon & lat (deg): %lf, %lf\n\n", wPos.x, wPos.y, wPos.z, wPos.w, cPos.x, cPos.y, cPos.z, cPos.w, inDegrees(sphere->radLonW(wPos)), inDegrees(sphere->radLatW(wPos)));
 		// printf("Clicked:\n\tWorld: (%lf, %lf, %lf, %lf)\n\tSphere: (%lf, %lf, %lf, %lf)\n\tClip: (%lf, %lf, %lf, %lf)\n\n", wPos.x, wPos.y, wPos.z, wPos.w, sDegPos.x, sDegPos.y, sDegPos.z, sDegPos.w, cPos.x, cPos.y, cPos.z, cPos.w);
 		// printf("Lat: %lf deg, %lf rad\nLon: %lf deg, %lf rad\n\n", degLat, radLat, degLon, radLon);
 
