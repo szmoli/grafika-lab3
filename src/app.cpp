@@ -290,6 +290,12 @@ public:
 		return vec4(x, y, 1.f, 1.f);
 	}
 
+	float distance(vec4 sP0, vec4 sP1) {
+		float dotProd = dot(normalize(vec3(sP0)), normalize(vec3(sP1)));
+		dotProd = clamp(dotProd, -1.0f, 1.0f);
+		return radius * acos(dotProd);
+	}
+
 	vec4 sPos(float radLon, float radLat) {
 		return vec4(
 			radius * cos(radLat) * cos(radLon),
@@ -341,8 +347,10 @@ public:
 			vec4 wP0 = sphere->wPos(lon_p0_s, lat_p0_s);
 			vec4 wP1 = sphere->wPos(lon_p1_s, lat_p1_s);
 
-			printf("p0 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPositions.back().x, wPositions.back().y, wPositions.back().z, wPositions.back().w, lon_p0, lat_p0, sP0.x, sP0.y, sP0.z, sP0.w, lon_p0_s, lat_p0_s, wP0.x, wP0.y, wP0.z, wP0.w);
-			printf("p1 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPosition.x, wPosition.y, wPosition.z, wPosition.w, lon_p1, lat_p1, sP1.x, sP1.y, sP1.z, sP1.w, lon_p1_s, lat_p1_s, wP1.x, wP1.y, wP1.z, wP1.w);
+			printf("Distance: %lf km.\n", sphere->distance(sP0, sP1));
+
+			// printf("p0 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPositions.back().x, wPositions.back().y, wPositions.back().z, wPositions.back().w, lon_p0, lat_p0, sP0.x, sP0.y, sP0.z, sP0.w, lon_p0_s, lat_p0_s, wP0.x, wP0.y, wP0.z, wP0.w);
+			// printf("p1 stuff:\n\tworld: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tsphere: (%lf, %lf, %lf, %lf)\n\tlon & lat: %lf, %lf\n\tworld: (%lf, %lf, %lf, %lf)\n\n", wPosition.x, wPosition.y, wPosition.z, wPosition.w, lon_p1, lat_p1, sP1.x, sP1.y, sP1.z, sP1.w, lon_p1_s, lat_p1_s, wP1.x, wP1.y, wP1.z, wP1.w);
 			
 			int resolution = 100;
 			for (int res = 1; res < resolution; ++res) {
