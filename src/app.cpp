@@ -17,7 +17,6 @@ float inRadians(float degrees) {
 	return degrees * (M_PI / 180);
 }
 
-// cs�cspont �rnyal�
 const char * vertSource = R"(
 	#version 330				
     precision highp float;
@@ -35,7 +34,6 @@ const char * vertSource = R"(
 	}
 )";
 
-// pixel �rnyal�
 const char * fragSource = R"(
 	#version 330
     precision highp float;
@@ -43,18 +41,39 @@ const char * fragSource = R"(
 	uniform sampler2D samplerUnit;
 	uniform bool coloring;
 	uniform vec3 color;
+	uniform float hour;
 
 	in vec2 texCoord;
 	
 	out vec4 fragmentColor;
 
+	const float M_PI = 3.141592653589793;
+
 	void main() {
-		if (coloring) {
-			fragmentColor = vec4(color, 1);
+		vec4 texColor = coloring ? vec4(color, 1) : texture(samplerUnit, texCoord);
+
+		float sunLon = 180.0f - 15.0f * hour;
+		float sunLat = 23.0f;
+		vec3 sunDir = vec3(
+			cos(radians(sunLat)) * cos(radians(sunLon)),
+			cos(radians(sunLat)) * sin(radians(sunLon)),
+			sin(radians(sunLat))
+		);
+		float longitude = (texCoord.x - 0.5) * 2.0 * M_PI;
+		float mercatorY = (texCoord.y - 0.5) * 2.0 * 2.9506;
+		float latitude = 2.0 * atan(exp(mercatorY)) - M_PI/2.0;
+		vec3 normal;
+		normal.x = cos(latitude) * cos(longitude);
+		normal.y = cos(latitude) * sin(longitude);
+		normal.z = sin(latitude);
+
+		float illumination = dot(normalize(normal), normalize(sunDir));
+
+		if (!coloring && illumination < 0.0f) {
+			texColor = texColor * 0.5;
 		}
-		else {
-			fragmentColor = texture(samplerUnit, texCoord);
-		}
+
+		fragmentColor = texColor;
 	}
 )";
 
@@ -193,11 +212,12 @@ public:
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 64, 64, 0, GL_RGBA, GL_UNSIGNED_BYTE, imgBytes.data());
 	}
 
-	void draw(GPUProgram* prog, mat4 MVP) {
+	void draw(GPUProgram* prog, mat4 MVP, float hour) {
 		prog->Use();
 		prog->setUniform(MVP, "MVP");
 		prog->setUniform(0, "samplerUnit");
 		prog->setUniform(false, "coloring");
+		prog->setUniform(hour, "hour");
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(vao);
@@ -408,10 +428,12 @@ class MercatorMapApp : public glApp {
 	Sphere* sphere;
 	mat4 MVP;
 	mat4 invMVP;
+	float hour;
 public:
 	MercatorMapApp() : glApp("Lab3") { }
 
 	void onInitialization() override {
+		hour = 0.f;
 		camera = new Camera();
 		MVP = camera->projection() * camera->view();
 		invMVP = camera->invView() * camera->invProjection();
@@ -438,7 +460,7 @@ public:
 		glClear(GL_COLOR_BUFFER_BIT);
 		glViewport(0, 0, winWidth, winHeight);
 
-		map->draw(gpuProgram, MVP);
+		map->draw(gpuProgram, MVP, hour);
 		routes->sync();
 		routes->draw(gpuProgram, MVP, vec3(1.f, 1.f, 0.f));
 		stations->sync();
@@ -463,6 +485,13 @@ public:
 		routes->addWPosition(wPos);
 		stations->addWPosition(wPos);
 		refreshScreen();
+	}
+
+	void onKeyboard(int ch) override {
+		if (tolower(ch) == 'n') {
+			hour = (float)(((int)hour + 1) % 24);
+			refreshScreen();
+		}
 	}
 };
 
